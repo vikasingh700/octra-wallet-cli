@@ -1,5 +1,7 @@
 <h2 align=center>Create octra wallet using CLI</h2>
 
+[![Watch the video](https://i.ytimg.com/vi/bJhVfrvdxVA/maxresdefault.jpg)](https://youtu.be/bJhVfrvdxVA)
+
 ## 💻 Installation
 - Open any Linux based terminal, you can use VPS / WSL (On windows) or simply you can use virtual IDE as well
 - If you don't have any VPS or not have WSL installed in your Windows, then simply go for virtual IDE
@@ -17,3 +19,4 @@ curl -sSL https://raw.githubusercontent.com/zunxbt/octra-wallet-cli/refs/heads/m
  ## ⚡ Post-Installation
  - Visit [octra faucet](https://faucet.octra.network) website to request faucet
  - Paste your wallet address, solve captcha and request faucet
+
