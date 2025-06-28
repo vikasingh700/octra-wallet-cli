@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Octra Wallet Generator Setup Script
-# Automated setup: security warning, build from source, run, and open browser
+# Automated setup: install prerequisites, build from source, run, and open browser
 
 echo "=== Octra Wallet Generator Setup ==="
 echo ""
@@ -18,6 +18,22 @@ echo ""
 read -p "Press Enter to continue..."
 echo ""
 
+# Install required packages
+echo "Installing required system packages (sudo, git)..."
+sudo apt update
+sudo apt install -y sudo git
+
+# Install Node.js and npm
+echo ""
+echo "Installing Node.js and npm..."
+curl -sSL https://raw.githubusercontent.com/zunxbt/installation/main/node.sh | bash
+
+# Clone the Octra wallet CLI repository
+echo ""
+echo "Cloning Octra Wallet CLI repository..."
+git clone https://github.com/zunxbt/octra-wallet-cli.git
+cd octra-wallet-cli || { echo "Failed to enter directory"; exit 1; }
+
 # Function to install Bun
 install_bun() {
     echo "Installing Bun..."
@@ -26,13 +42,13 @@ install_bun() {
     else
         echo "Installing Bun..."
         curl -fsSL https://bun.sh/install | bash
-        # Set PATH to include Bun's binary directory
         export PATH="$HOME/.bun/bin:$PATH"
         echo "Bun installed successfully!"
     fi
 }
 
 # Build from source
+echo ""
 echo "=== Building from Source ==="
 echo ""
 
@@ -48,5 +64,5 @@ echo "Building standalone executable..."
 bun run build
 
 echo ""
-echo "Running CLI command to create new octra wallet"
+echo "Running CLI command to create new Octra wallet..."
 ./octra-wallet generate --save
