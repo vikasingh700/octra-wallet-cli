@@ -3,6 +3,7 @@ import fs from "fs";
 import nacl from "tweetnacl";
 import bip39 from "bip39";
 import { Command } from "commander";
+import readline from "readline";
 
 interface MasterKey {
   masterPrivateKey: Buffer;
@@ -285,6 +286,99 @@ async function generateWallet(save: boolean) {
   }
 }
 
+async function generateMultipleWallets() {
+  // Ask user how many wallets to generate
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  function askQuestion(query: string): Promise<string> {
+    return new Promise((resolve) => rl.question(query, resolve));
+  }
+
+  let count: number;
+  while (true) {
+    const input = await askQuestion("How many wallets would you like to generate? ");
+    count = parseInt(input);
+    if (!isNaN(count) && count > 0) break;
+    console.log("Please enter a valid positive number.");
+  }
+
+  // Generate wallets and accumulate details and addresses
+  const allWalletData: any[] = [];
+  const allAddresses: string[] = [];
+  const timestamp = Math.floor(Date.now() / 1000);
+  const walletDetailsFilename = `octra_wallets_${count}_${timestamp}.txt`;
+  const addressesFilename = `octra_wallets_addresses_${count}_${timestamp}.txt`;
+
+  for (let i = 0; i < count; i++) {
+    const entropy = generateEntropy(128);
+    const mnemonic = bip39.entropyToMnemonic(entropy.toString("hex"));
+    const mnemonicWords = mnemonic.split(" ");
+    const seed = bip39.mnemonicToSeedSync(mnemonic);
+    const { masterPrivateKey, masterChainCode } = deriveMasterKey(seed);
+    const keyPair = nacl.sign.keyPair.fromSeed(masterPrivateKey);
+    const privateKeyRaw = Buffer.from(keyPair.secretKey.slice(0, 32));
+    const publicKeyRaw = Buffer.from(keyPair.publicKey);
+    const address = createOctraAddress(publicKeyRaw);
+    if (!verifyAddressFormat(address)) {
+      console.error(`ERROR: Invalid address format generated for wallet #${i + 1}`);
+      continue;
+    }
+    const testMessage = '{"from":"test","to":"test","amount":"1000000","nonce":1}';
+    const messageBytes = Buffer.from(testMessage, "utf8");
+    const signature = nacl.sign.detached(messageBytes, keyPair.secretKey);
+    const signatureB64 = base64Encode(signature);
+    let signatureValid = false;
+    try {
+      signatureValid = nacl.sign.detached.verify(messageBytes, signature, keyPair.publicKey);
+    } catch (error) {
+      console.log(`Signature test failed for wallet #${i + 1}`);
+    }
+
+    const walletData = {
+      index: i + 1,
+      mnemonic: mnemonicWords,
+      seed_hex: bufferToHex(seed),
+      master_chain_hex: bufferToHex(masterChainCode),
+      private_key_hex: bufferToHex(privateKeyRaw),
+      public_key_hex: bufferToHex(publicKeyRaw),
+      private_key_b64: base64Encode(privateKeyRaw),
+      public_key_b64: base64Encode(publicKeyRaw),
+      address: address,
+      entropy_hex: bufferToHex(entropy),
+      test_message: testMessage,
+      test_signature: signatureB64,
+      signature_valid: signatureValid,
+    };
+
+    allWalletData.push(walletData);
+    allAddresses.push(address);
+    console.log(`Generated wallet #${i + 1}: ${address}`);
+  }
+
+  // Write all details into one file
+  let detailsContent =
+    `OCTRA WALLETS BATCH\n${"=".repeat(60)}\nGenerated: ${new Date()
+      .toISOString()
+      .replace("T", " ")
+      .slice(0, 19)}\n\nSECURITY WARNING: KEEP THIS FILE SECURE AND NEVER SHARE YOUR PRIVATE KEYS\n\nTotal wallets: ${allWalletData.length}\n\n`;
+
+  for (const wd of allWalletData) {
+    detailsContent +=
+      `${"-".repeat(60)}\nWallet #${wd.index}\nMnemonic: ${wd.mnemonic.join(" ")}\nPrivate Key (Hex): ${wd.private_key_hex}\nPrivate Key (B64): ${wd.private_key_b64}\nPublic Key (Hex): ${wd.public_key_hex}\nPublic Key (B64): ${wd.public_key_b64}\nAddress: ${wd.address}\nEntropy: ${wd.entropy_hex}\nSeed: ${wd.seed_hex.substring(0, 64)}...\nMaster Chain: ${wd.master_chain_hex}\nTest Message: ${wd.test_message}\nTest Signature: ${wd.test_signature}\nSignature Valid: ${wd.signature_valid ? "Yes" : "No"}\n\n`;
+  }
+
+  fs.writeFileSync(walletDetailsFilename, detailsContent);
+  fs.writeFileSync(addressesFilename, allAddresses.join("\n") + "\n");
+
+  console.log(`\nAll wallet details saved to: ${walletDetailsFilename}`);
+  console.log(`Addresses only saved to: ${addressesFilename}`);
+
+  rl.close();
+}
+
 async function deriveAddress(mnemonic: string, networkType: number, index: number) {
   if (!bip39.validateMnemonic(mnemonic)) {
     console.error("Invalid mnemonic phrase");
@@ -319,6 +413,13 @@ program
   .option("-s, --save", "Save wallet to file")
   .action(async (options) => {
     await generateWallet(options.save);
+  });
+
+program
+  .command("generate-multi")
+  .description("Generate multiple wallets and save them to files")
+  .action(async () => {
+    await generateMultipleWallets();
   });
 
 program
