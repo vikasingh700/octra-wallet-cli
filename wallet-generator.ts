@@ -1,7 +1,7 @@
-import crypto from "crypto";
-import fs from "fs";
-import nacl from "tweetnacl";
-import bip39 from "bip39";
+import * as crypto from "crypto";
+import * as fs from "fs";
+import * as nacl from "tweetnacl";
+import * as bip39 from "bip39";
 import { Command } from "commander";
 import readline from "readline";
 
